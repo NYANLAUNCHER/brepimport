@@ -1,6 +1,5 @@
-// Local
-use brepimport::run;
+use learn_wgpu::run;
 
 fn main() {
-    run().unwrap();
+    pollster::block_on(run());
 }

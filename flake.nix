@@ -29,6 +29,7 @@
           wayland
           wayland-protocols
           libxkbcommon
+          cmake
         ];
 
         #fenix_complete = pkgs.fenix.complete {
@@ -63,7 +64,9 @@
             rust-analyzer-nightly
             wasm-tools
             wasm-pack
-            http-server
+            vulkan-tools
+            vulkan-loader
+            cmake
           ]) ++ [
             rustToolchain
             wasm-server-runner.packages.${system}.default
