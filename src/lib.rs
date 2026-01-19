@@ -1,5 +1,7 @@
 use std::{iter, sync::Arc};
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 use winit::{
     application::ApplicationHandler,
     event::*,
@@ -7,9 +9,6 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
-
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 
 pub struct State {
     surface: wgpu::Surface<'static>,
@@ -103,13 +102,15 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // 1.
-                buffers: &[], // 2.
+                buffers: &[],                 // 2.
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
-            fragment: Some(wgpu::FragmentState { // 3.
+            fragment: Some(wgpu::FragmentState {
+                // 3.
                 module: &shader,
                 entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState { // 4.
+                targets: &[Some(wgpu::ColorTargetState {
+                    // 4.
                     format: config.format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
@@ -130,12 +131,12 @@ impl State {
             },
             depth_stencil: None, // 1.
             multisample: wgpu::MultisampleState {
-                count: 1, // 2.
-                mask: !0, // 3.
+                count: 1,                         // 2.
+                mask: !0,                         // 3.
                 alpha_to_coverage_enabled: false, // 4.
             },
             multiview_mask: None, // 5.
-            cache: None, // 6.
+            cache: None,          // 6.
         });
 
         Ok(Self {
@@ -145,7 +146,7 @@ impl State {
             config,
             is_surface_configured: false,
             render_pipeline,
-            window
+            window,
         })
     }
 
@@ -188,23 +189,21 @@ impl State {
                         view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(
-                                      wgpu::Color {
-                                          r: 0.1,
-                                          g: 0.2,
-                                          b: 0.3,
-                                          a: 1.0,
-                                      }
-                                  ),
-                                  store: wgpu::StoreOp::Store,
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.1,
+                                g: 0.2,
+                                b: 0.3,
+                                a: 1.0,
+                            }),
+                            store: wgpu::StoreOp::Store,
                         },
-                        depth_slice: None
-                    })
+                        depth_slice: None,
+                    }),
                 ],
                 depth_stencil_attachment: None,
                 multiview_mask: None,
                 occlusion_query_set: None,
-                timestamp_writes: None
+                timestamp_writes: None,
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
@@ -260,7 +259,7 @@ impl ApplicationHandler<State> for App {
             //let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
             //let html_canvas_element = canvas.unchecked_into();
             //window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
-            
+
             let window = wgpu::web_sys::window().unwrap_throw();
             let document = window.document().unwrap_throw();
             let canvas = document
@@ -284,13 +283,15 @@ impl ApplicationHandler<State> for App {
         {
             if let Some(proxy) = self.proxy.take() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    assert!(proxy
-                        .send_event(
-                            State::new(window)
-                                .await
-                                .expect("Unable to create canvas!!!")
-                        )
-                        .is_ok())
+                    assert!(
+                        proxy
+                            .send_event(
+                                State::new(window)
+                                    .await
+                                    .expect("Unable to create canvas!!!")
+                            )
+                            .is_ok()
+                    )
                 });
             }
         }
