@@ -62,11 +62,12 @@
           nativeBuildInputs = (with pkgs; [
             alejandra
             rust-analyzer-nightly
+            #wgsl-analyzer
             wasm-tools
             wasm-pack
             vulkan-tools
             vulkan-loader
-            cmake
+            http-server
           ]) ++ [
             rustToolchain
             wasm-server-runner.packages.${system}.default
