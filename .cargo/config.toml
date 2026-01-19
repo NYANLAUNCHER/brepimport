@@ -1,6 +1,5 @@
 [alias]
-wasm = "build --target wasm32-unknown-unknown"
-run-wasm = "run --target wasm32-unknown-unknown"
+wasm = "run --target wasm32-unknown-unknown"
 
 [target.wasm32-unknown-unknown]
 runner = "wasm-server-runner"
