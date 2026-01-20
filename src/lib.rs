@@ -32,7 +32,6 @@ impl State {
             backends: wgpu::Backends::VULKAN,
             #[cfg(target_arch = "wasm32")]
             backends: wgpu::Backends::BROWSER_WEBGPU,
-            //backends: wgpu::Backends::GL,
             ..Default::default()
         });
 

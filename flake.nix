@@ -39,6 +39,7 @@
 
         nativeBuildInputs = (with pkgs; [ # build-time dependencies
           pkg-config
+          vulkan-headers
         ]) ++ [ # Rust toolchain
           rustToolchain
           wasm-server-runner.packages.${system}.default
@@ -48,9 +49,20 @@
           mesa
           libdrm
           udev
+          # Vulkan
           vulkan-loader
+          vulkan-validation-layers
+          vulkan-extension-layer
+          # Wayland
           wayland
           wayland-protocols
+          # X11
+          xorg.libX11
+          xorg.libXrandr
+          xorg.libXcursor
+          xorg.libXinerama
+          xorg.libXext
+          xorg.libXi
           libxkbcommon
         ];
 
@@ -81,6 +93,12 @@
             export rust_toolchain="${rustToolchain}"
             run-wasm() {
               wasm-pack build --target web && http-server
+            }
+            # Force Winit to use X11
+            winit-force-X11() {
+              export WINIT_UNIX_BACKEND=x11
+              unset WAYLAND_DISPLAY
+              unset XDG_SESSION_TYPE
             }
           '';
         };
