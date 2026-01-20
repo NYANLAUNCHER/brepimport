@@ -9,8 +9,6 @@ keywords = ["brep", "cad", "step"]
 #build = "build/main.rs"
 
 [lib]
-name = "brepimport_core"
-path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
