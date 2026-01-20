@@ -1,6 +1,6 @@
 [package]
 edition = "2024"
-version = "1.0.0"
+version = "0.1.0"
 name = "brepimport"
 description = "A Rust library for importing BREP objects."
 repository = "https://github.com/NYANLAUNCHER/brepimport"

@@ -24,19 +24,6 @@
           overlays = [fenix.overlays.default];
         };
 
-        buildInputs = with pkgs; [ # runtime dependencies
-          pkg-config
-          wayland
-          wayland-protocols
-          libxkbcommon
-          cmake
-        ];
-
-        #fenix_complete = pkgs.fenix.complete {
-        #  targets = [ "wasm32-unknown-unknown" ];
-        #  withComponents = [ "cargo" "clippy" "rust-src" "rustc" "rustfmt" ];
-        #};
-
         # see: https://github.com/nix-community/fenix
         rustToolchain = with pkgs.fenix; combine [
           (with complete; [
@@ -50,36 +37,51 @@
           targets.wasm32-unknown-unknown.latest.rust-std
         ];
 
+        nativeBuildInputs = (with pkgs; [ # build-time dependencies
+          pkg-config
+        ]) ++ [ # Rust toolchain
+          rustToolchain
+          wasm-server-runner.packages.${system}.default
+        ];
+
+        buildInputs = with pkgs; [ # runtime dependencies
+          mesa
+          libdrm
+          udev
+          vulkan-loader
+          wayland
+          wayland-protocols
+          libxkbcommon
+        ];
+
         naersk' = pkgs.callPackage naersk {};
       in rec {
         defaultPackage = naersk'.buildPackage {
           src = ./.;
-          inherit buildInputs;
+          inherit buildInputs nativeBuildInputs;
         };
 
         devShell = pkgs.mkShell {
           inherit buildInputs;
-          nativeBuildInputs = (with pkgs; [
+          nativeBuildInputs = nativeBuildInputs ++ (with pkgs; [
             alejandra
-            rust-analyzer-nightly
-            #wgsl-analyzer
+            http-server
             wasm-tools
             wasm-pack
-            vulkan-tools
-            vulkan-loader
-            http-server
-          ]) ++ [
-            rustToolchain
-            wasm-server-runner.packages.${system}.default
-          ] ;
+            vulkan-tools # provides: vkcube vkcubepp vulkaninfo
+            # LSP Shiz
+            rust-analyzer-nightly
+            wgsl-analyzer
+          ]);
+          # Dev note: `shellHook` should be posix sh compliant
           shellHook = ''
-            export RUST_BACKTRACE=1
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
-              pkgs.wayland
-              pkgs.libxkbcommon
-              pkgs.udev
-            ]}"
+            export TOP="$(realpath ./)"
+            export RUST_BACKTRACE=full
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}"
             export rust_toolchain="${rustToolchain}"
+            run-wasm() {
+              wasm-pack build --target web && http-server
+            }
           '';
         };
       }
