@@ -97,8 +97,16 @@
             # Force Winit to use X11
             winit-force-X11() {
               export WINIT_UNIX_BACKEND=x11
+              export OLD_WAYLAND_DISPLAY="$WAYLAND_DISPLAY"
+              export OLD_XDG_SESSION_TYPE="$XDG_SESSION_TYPE"
               unset WAYLAND_DISPLAY
               unset XDG_SESSION_TYPE
+            }
+            # Revert winit-force-X11
+            winit-unset-X11() {
+              unset WINIT_UNIX_BACKEND=x11
+              export WAYLAND_DISPLAY="$OLD_WAYLAND_DISPLAY"
+              export XDG_SESSION_TYPE="$OLD_XDG_SESSION_TYPE"
             }
           '';
         };
