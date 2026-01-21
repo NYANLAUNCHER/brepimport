@@ -2,6 +2,7 @@
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use log::info;
 // Dependencies
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -12,7 +13,6 @@ use winit::{
     keyboard::PhysicalKey,
     window::Window,
 };
-use log::info;
 // Local modules
 mod state;
 use state::State;
@@ -21,23 +21,23 @@ use mesh::Vertex;
 
 /// Winding Order = wgpu::FrontFace::Ccw
 pub const VERTICES: &[Vertex] = &[
-    Vertex { // A
+    Vertex {
         position: [-0.0868241, 0.49240386, 0.0],
         color: [0.5, 0.0, 0.5],
     },
-    Vertex { // B
+    Vertex {
         position: [-0.49513406, 0.06958647, 0.0],
         color: [0.5, 0.0, 0.5],
     },
-    Vertex { // C
+    Vertex {
         position: [-0.21918549, -0.44939706, 0.0],
         color: [0.5, 0.0, 0.5],
     },
-    Vertex { // D
+    Vertex {
         position: [0.35966998, -0.3473291, 0.0],
         color: [0.5, 0.0, 0.5],
     },
-    Vertex { // E
+    Vertex {
         position: [0.44147372, 0.2347359, 0.0],
         color: [0.5, 0.0, 0.5],
     },

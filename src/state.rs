@@ -8,7 +8,7 @@ use wgpu::util::DeviceExt;
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 
 // Local modules
-use crate::{mesh::Vertex, VERTICES, INDICES};
+use crate::{INDICES, VERTICES, mesh::Vertex};
 
 pub struct State {
     pub window: Arc<Window>,
@@ -28,7 +28,7 @@ impl State {
     pub async fn new(window: Arc<Window>) -> anyhow::Result<State> {
         let size = window.inner_size();
 
-        // The instance is a handle to our GPU
+        // Instance is the instance WGPU, which needs a backend to invoke cmd's on the GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             #[cfg(not(target_arch = "wasm32"))]
@@ -38,6 +38,7 @@ impl State {
             ..Default::default()
         });
 
+        // Surface is the part of the window to be drawn to
         let surface = match instance.create_surface(window.clone()) {
             Ok(val) => val,
             Err(e) => {
@@ -45,6 +46,7 @@ impl State {
             }
         };
 
+        // Adapter is a handle for the physical GPU
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -54,6 +56,8 @@ impl State {
             .await
             .unwrap();
 
+        // Device is a logical over the physical GPU
+        // Queue refers to the work queue which is what runs command buffers
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
@@ -72,6 +76,7 @@ impl State {
             .await
             .unwrap();
 
+        // surface capabilities
         let surface_caps = surface.get_capabilities(&adapter);
 
         // Shader code in this tutorial assumes an Srgb surface texture. Using a different
@@ -84,6 +89,7 @@ impl State {
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
 
+        // Surface configuration
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
@@ -123,6 +129,7 @@ impl State {
                 immediate_size: 0,
             });
 
+        // Render Pipeline refers to the incremental stages of graphics processing or compute
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
