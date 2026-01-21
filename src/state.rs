@@ -8,12 +8,14 @@ use wgpu::util::DeviceExt;
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 
 // Local modules
-use crate::{VERTICES, mesh::Vertex};
+use crate::{mesh::Vertex, VERTICES, INDICES};
 
 pub struct State {
-    pub(crate) window: Arc<Window>,
-    pub(crate) vertex_buffer: wgpu::Buffer,
-    pub(crate) vertex_count: u32,
+    pub window: Arc<Window>,
+    pub vertex_buffer: wgpu::Buffer,
+    pub vertex_count: u32,
+    pub index_buffer: wgpu::Buffer,
+    pub index_count: u32,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
@@ -101,6 +103,14 @@ impl State {
 
         let vertex_count = VERTICES.len() as u32;
 
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let index_count = INDICES.len() as u32;
+
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../assets/shaders/basic.wgsl").into()),
@@ -164,6 +174,8 @@ impl State {
             config,
             vertex_buffer,
             vertex_count,
+            index_buffer,
+            index_count,
             is_surface_configured: false,
             render_pipeline,
         })
@@ -227,7 +239,8 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..self.vertex_count, 0..1);
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
         }
 
         self.queue.submit(iter::once(encoder.finish()));

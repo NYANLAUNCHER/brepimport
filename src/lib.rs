@@ -1,5 +1,6 @@
 // STD
 use std::sync::Arc;
+use std::time::SystemTime;
 
 // Dependencies
 #[cfg(target_arch = "wasm32")]
@@ -11,6 +12,7 @@ use winit::{
     keyboard::PhysicalKey,
     window::Window,
 };
+use log::info;
 // Local modules
 mod state;
 use state::State;
@@ -18,25 +20,37 @@ mod mesh;
 use mesh::Vertex;
 
 /// Winding Order = wgpu::FrontFace::Ccw
-pub(crate) const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [0.0, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
+pub const VERTICES: &[Vertex] = &[
+    Vertex { // A
+        position: [-0.0868241, 0.49240386, 0.0],
+        color: [0.5, 0.0, 0.5],
     },
-    Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [0.0, 1.0, 0.0],
+    Vertex { // B
+        position: [-0.49513406, 0.06958647, 0.0],
+        color: [0.5, 0.0, 0.5],
     },
-    Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
+    Vertex { // C
+        position: [-0.21918549, -0.44939706, 0.0],
+        color: [0.5, 0.0, 0.5],
+    },
+    Vertex { // D
+        position: [0.35966998, -0.3473291, 0.0],
+        color: [0.5, 0.0, 0.5],
+    },
+    Vertex { // E
+        position: [0.44147372, 0.2347359, 0.0],
+        color: [0.5, 0.0, 0.5],
     },
 ];
+
+pub const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
 pub struct App {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<winit::event_loop::EventLoopProxy<State>>,
     state: Option<State>,
+    /// Stores the time at struct initialization
+    init_time: SystemTime,
 }
 
 impl App {
@@ -47,7 +61,13 @@ impl App {
             state: None,
             #[cfg(target_arch = "wasm32")]
             proxy,
+            init_time: SystemTime::now(),
         }
+    }
+
+    /// Returns the time of initialization for the current [`App`] instance
+    pub fn init_time(&self) -> SystemTime {
+        self.init_time
     }
 }
 
@@ -181,6 +201,8 @@ pub fn run() -> anyhow::Result<()> {
         #[cfg(target_arch = "wasm32")]
         &event_loop,
     );
+    info!("App initialized!");
+    info!("init_time: {:?}", app.init_time());
     event_loop.run_app(&mut app)?;
 
     Ok(())
