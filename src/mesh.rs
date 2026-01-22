@@ -2,7 +2,7 @@
 #[derive(Copy, Clone, Debug)]
 pub struct Vertex {
     pub position: [f32; 3],
-    pub color: [f32; 3],
+    pub uv_coords: [f32; 2],
 }
 unsafe impl bytemuck::Pod for Vertex {}
 unsafe impl bytemuck::Zeroable for Vertex {}
@@ -21,7 +21,7 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x2,
                 },
             ],
         }
