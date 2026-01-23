@@ -6,7 +6,8 @@ description = "A Rust library for importing BREP objects."
 repository = "https://github.com/NYANLAUNCHER/brepimport"
 license = "MIT"
 keywords = ["brep", "cad", "step"]
-#build = "build/main.rs"
+default-run = "brepviewer"
+build = "build/main.rs"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -21,6 +22,7 @@ wgpu = "28.0"
 pollster = "0.3"
 wasm-bindgen = "=0.2.106"
 bytemuck = { version = "1.24", features = [ "derive" ] }
+cgmath = "0.18"
 
 [dependencies.image]
 version = "0.24"

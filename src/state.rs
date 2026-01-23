@@ -8,8 +8,9 @@ use wgpu::util::DeviceExt;
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 
 // Local modules
-use crate::{INDICES, VERTICES, mesh::Vertex};
+use crate::camera::{Camera, CameraController, CameraUniform};
 use crate::texture;
+use crate::{INDICES, VERTICES, mesh::Vertex};
 
 pub struct State {
     pub window: Arc<Window>,
@@ -17,14 +18,19 @@ pub struct State {
     pub vertex_count: u32,
     pub index_buffer: wgpu::Buffer,
     pub index_count: u32,
+    pub camera: Camera,
+    pub camera_controller: CameraController,
+    pub camera_uniform: CameraUniform,
+    pub camera_buffer: wgpu::Buffer,
+    pub camera_bind_group: wgpu::BindGroup,
+    pub diffuse_texture: texture::Texture,
+    pub diffuse_bind_group: wgpu::BindGroup,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
     render_pipeline: wgpu::RenderPipeline,
-    diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: texture::Texture,
 }
 
 impl State {
@@ -111,7 +117,8 @@ impl State {
 
         // Texture Creation: {{{
         let diffuse_bytes = include_bytes!("../assets/textures/happy-tree.png");
-        let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
+        let diffuse_texture =
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -154,7 +161,7 @@ impl State {
         });
         //}}}
 
-        // Vertex & Index Buffer Initializtion: {{{
+        // Vertex & Index Buffer Initialization: {{{
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(VERTICES),
@@ -172,6 +179,45 @@ impl State {
         let index_count = INDICES.len() as u32;
         //}}}
 
+        // Camera Creation: {{{
+        let camera = { Camera::new(config.width as f32 / config.height as f32) };
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_vp(&camera);
+
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("camera_bind_group_layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
+        let camera_controller = CameraController::new(0.2);
+        //}}}
+
         // Render Pipeline Creation: {{{
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
@@ -181,7 +227,7 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout],
+                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
                 immediate_size: 0,
             });
 
@@ -243,6 +289,11 @@ impl State {
             index_buffer,
             index_count,
             is_surface_configured: false,
+            camera,
+            camera_controller,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
             render_pipeline,
         })
     }
@@ -256,8 +307,21 @@ impl State {
         }
     }
 
-    pub fn update(&mut self) {}
+    pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
+        if let (KeyCode::KeyQ, true) = (code, is_pressed) {
+            event_loop.exit()
+        } else  {
+            self.camera_controller.handle_key(code, is_pressed);
+        }
+    }
 
+    pub fn update(&mut self) {
+        self.camera_controller.update_camera(&mut self.camera);
+        self.camera_uniform.update_vp(& self.camera);
+        self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+    }
+
+    /// Render onto the surface
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
 
@@ -304,8 +368,13 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            // Textures
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            // Camera
+            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            // Vertex Buffer
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            // Index Buffer
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.index_count, 0, 0..1);
         }
@@ -314,11 +383,5 @@ impl State {
         output.present();
 
         Ok(())
-    }
-
-    pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
-        if let (KeyCode::KeyQ, true) = (code, is_pressed) {
-            event_loop.exit()
-        }
     }
 }

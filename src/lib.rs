@@ -2,7 +2,6 @@
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use log::info;
 // Dependencies
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -14,13 +13,15 @@ use winit::{
     window::Window,
 };
 // Local modules
-mod state;
-mod mesh;
-mod texture;
-use state::State;
+pub mod camera;
+pub mod mesh;
+pub mod state;
+pub mod texture;
 use mesh::Vertex;
+use state::State;
 
 /// Winding Order = wgpu::FrontFace::Ccw
+#[rustfmt::skip]
 const VERTICES: &[Vertex] = &[
     // Changed
     Vertex { position: [-0.0868241, 0.49240386, 0.0], uv_coords: [0.4131759, 0.00759614], }, // A
@@ -29,6 +30,7 @@ const VERTICES: &[Vertex] = &[
     Vertex { position: [0.35966998, -0.3473291, 0.0], uv_coords: [0.85967, 0.84732914], }, // D
     Vertex { position: [0.44147372, 0.2347359, 0.0], uv_coords: [0.9414737, 0.2652641], }, // E
 ];
+#[rustfmt::skip]
 pub const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
 pub struct App {
@@ -187,8 +189,8 @@ pub fn run() -> anyhow::Result<()> {
         #[cfg(target_arch = "wasm32")]
         &event_loop,
     );
-    info!("App initialized!");
-    info!("init_time: {:?}", app.init_time());
+    log::info!("App initialized!");
+    log::info!("init_time: {:?}", app.init_time());
     event_loop.run_app(&mut app)?;
 
     Ok(())
