@@ -57,7 +57,7 @@ impl State {
             }
         };
 
-        // Adapter is a handle for the physical GPU
+        // Adapter to filter device based on capabilities
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -67,7 +67,7 @@ impl State {
             .await
             .unwrap();
 
-        // Device is a logical over the physical GPU
+        // Device is a logical abstraction over the physical GPU
         // Queue refers to the work queue which is what runs command buffers
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
