@@ -1,5 +1,9 @@
 // Local modules
-use super::mesh::Mesh;
+//use super::mesh::Mesh;
+
+use std::sync::Arc;
+
+use winit::window::Window;
 
 /// Represents the state of the graphics pipeline for [`super::App`]
 pub struct State {
@@ -23,7 +27,7 @@ impl State {
     ///     2. Surface Configuration
     ///     3. Pipeline Creation
     ///     4. Window Attachment
-    pub async fn new() -> anyhow::Result<Self> {
+    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         // API & Device Setup: {{{
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
@@ -99,7 +103,7 @@ impl State {
                 module: &shader_module,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Mesh::layout()],
+                buffers: &[],
             },
             // Fragment shader stage
             fragment: Some(wgpu::FragmentState {
