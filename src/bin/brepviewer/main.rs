@@ -1,6 +1,12 @@
+use std::sync::Arc;
+
 // Dependencies
+use log::{error, info, warn};
 use winit::{
-    application::ApplicationHandler, event::WindowEvent, event_loop::{ControlFlow, EventLoop}, window::Window
+    application::ApplicationHandler,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    window::Window,
 };
 // Local modules
 //mod mesh;
@@ -18,37 +24,39 @@ struct App {
 }
 
 impl ApplicationHandler for App {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.window = Some(event_loop.create_window(Window::default_attributes()).unwrap());
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let window_attributes = Window::default_attributes().with_title("A fantastic window!");
+        let window = event_loop.create_window(window_attributes).unwrap();
+        self.state = Some(pollster::block_on(State::new(Arc::new(window))).unwrap());
+        self.window = Some(window);
     }
 
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        _id: winit::window::WindowId,
+        id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
         match event {
             WindowEvent::Focused(v) => {
                 if v == true {
-                    println!("Window was focused.");
+                    println!("Window {:?} was focused.", id);
                 }
-            },
+            }
             WindowEvent::CloseRequested => {
                 println!("Application is now closing.");
                 event_loop.exit();
-            },
+            }
             WindowEvent::RedrawRequested => {
                 self.window.as_ref().unwrap().request_redraw();
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
 }
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Poll);
     let mut app = App {
         window: None,
         state: None,
