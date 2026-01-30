@@ -23,6 +23,7 @@ pollster = "0.3"
 wasm-bindgen = "=0.2.106"
 bytemuck = { version = "1.24", features = [ "derive" ] }
 cgmath = "0.18"
+chrono = "0.4.43"
 
 [dependencies.image]
 version = "0.24"

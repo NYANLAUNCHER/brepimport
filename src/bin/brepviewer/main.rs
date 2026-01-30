@@ -1,7 +1,7 @@
 use std::sync::Arc;
-
 // Dependencies
-use log::{error, info, warn};
+#[allow(unused_imports)]
+use log::{info, warn, error};
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -16,19 +16,17 @@ use state::State;
 /// Handle for a graphical application.
 #[derive(Default)]
 struct App {
-    /// Platform dependent window handle
-    pub window: Option<Window>,
-
-    /// The state of the graphics pipeline for [`App`]
+    /// The graphical state of [`App`]
     state: Option<State>,
 }
 
 impl ApplicationHandler for App {
+    /// Creates the window and event loop
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window_attributes = Window::default_attributes().with_title("A fantastic window!");
         let window = event_loop.create_window(window_attributes).unwrap();
-        self.state = Some(pollster::block_on(State::new(Arc::new(window))).unwrap());
-        self.window = Some(window);
+        let window = Arc::new(window);
+        self.state = Some(pollster::block_on(State::new(window)).unwrap());
     }
 
     fn window_event(
@@ -37,29 +35,32 @@ impl ApplicationHandler for App {
         id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
+        let state = match &mut self.state {
+            Some(canvas) => canvas,
+            None => return,
+        };
         match event {
             WindowEvent::Focused(v) => {
                 if v == true {
-                    println!("Window {:?} was focused.", id);
+                    info!("Window {:?} was focused.", id);
                 }
-            }
+            },
             WindowEvent::CloseRequested => {
-                println!("Application is now closing.");
+                info!("Window is now closing.");
                 event_loop.exit();
-            }
+            },
             WindowEvent::RedrawRequested => {
-                self.window.as_ref().unwrap().request_redraw();
-            }
+                let _ = state.render();
+            },
             _ => (),
         }
     }
 }
 
 fn main() {
+    env_logger::init();
+    info!("App was started.");
     let event_loop = EventLoop::new().unwrap();
-    let mut app = App {
-        window: None,
-        state: None,
-    };
+    let mut app = App::default();
     let _ = event_loop.run_app(&mut app);
 }

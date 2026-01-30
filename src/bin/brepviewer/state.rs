@@ -1,12 +1,13 @@
+use std::sync::Arc;
+// Dependencies
+use winit::window::Window;
 // Local modules
 //use super::mesh::Mesh;
 
-use std::sync::Arc;
-
-use winit::window::Window;
-
-/// Represents the state of the graphics pipeline for [`super::App`]
+/// Represents the graphical state of [`super::App`]
 pub struct State {
+    /// Platform dependent window handle
+    pub window: Arc<Window>,
     /// Represents the physical graphics device or GPU.
     device: wgpu::Device,
     /// The GPU's work queue.
@@ -22,7 +23,7 @@ pub struct State {
 impl State {
     /// Creates a new graphics pipeline for [`super::App`]
     ///
-    /// The graphics pipeline creation process consists of these descrete stages:
+    /// The graphics pipeline creation process consists of these discrete stages:
     ///     1. Device & Queue setup
     ///     2. Surface Configuration
     ///     3. Pipeline Creation
@@ -137,11 +138,25 @@ impl State {
         });
         //}}}
         Ok(Self {
+            window,
             device,
             queue,
             surface,
             surface_config,
             pipeline,
         })
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        if width > 0 && height > 0 {
+            self.surface_config.width = width;
+            self.surface_config.height = height;
+            self.surface.configure(&self.device, &self.surface_config);
+        }
+    }
+
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        self.window.request_redraw();
+        Ok(())
     }
 }
