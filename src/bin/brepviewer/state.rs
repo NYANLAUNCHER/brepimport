@@ -1,6 +1,8 @@
 use std::sync::Arc;
 // Dependencies
-use winit::window::Window;
+#[allow(unused_imports)]
+use log::{error, warn, info, debug, trace};
+use winit::{dpi::PhysicalSize, window::Window};
 // Local modules
 //use super::mesh::Mesh;
 
@@ -29,6 +31,7 @@ impl State {
     ///     3. Pipeline Creation
     ///     4. Window Attachment
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
+        debug!("Entering State::new()");
         // API & Device Setup: {{{
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
@@ -103,8 +106,8 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: Some("vs_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
                 buffers: &[],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             // Fragment shader stage
             fragment: Some(wgpu::FragmentState {
@@ -137,6 +140,7 @@ impl State {
             cache: None,
         });
         //}}}
+        debug!("Exiting State::new()");
         Ok(Self {
             window,
             device,
@@ -147,7 +151,9 @@ impl State {
         })
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
+    pub fn resize(&mut self, size: PhysicalSize<u32>) {
+        let width = size.width;
+        let height = size.height;
         if width > 0 && height > 0 {
             self.surface_config.width = width;
             self.surface_config.height = height;

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 // Dependencies
 #[allow(unused_imports)]
-use log::{info, warn, error};
+use log::{error, warn, info, debug, trace};
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -23,10 +23,12 @@ struct App {
 impl ApplicationHandler for App {
     /// Creates the window and event loop
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        info!("Creating new Window");
         let window_attributes = Window::default_attributes().with_title("A fantastic window!");
         let window = event_loop.create_window(window_attributes).unwrap();
         let window = Arc::new(window);
         self.state = Some(pollster::block_on(State::new(window)).unwrap());
+        info!("Window was created.");
     }
 
     fn window_event(
@@ -39,18 +41,25 @@ impl ApplicationHandler for App {
             Some(canvas) => canvas,
             None => return,
         };
+        trace!("Received window event: {:?}", event);
         match event {
             WindowEvent::Focused(v) => {
                 if v == true {
                     info!("Window {:?} was focused.", id);
                 }
             },
+            WindowEvent::RedrawRequested => {
+                let _ = state.render();
+            },
+            WindowEvent::Resized(size) => {
+                state.resize(size);
+            },
+            WindowEvent::KeyboardInput { event, .. } => {
+                debug!("Key event: {:?}", event);
+            },
             WindowEvent::CloseRequested => {
                 info!("Window is now closing.");
                 event_loop.exit();
-            },
-            WindowEvent::RedrawRequested => {
-                let _ = state.render();
             },
             _ => (),
         }

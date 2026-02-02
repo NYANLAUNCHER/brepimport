@@ -89,6 +89,9 @@
           shellHook = ''
             export TOP="$(realpath ./)"
             export RUST_BACKTRACE=full
+            # log levels in order of verbosity:
+            # [ERROR, WARN, INFO, DEBUG, TRACE]
+            export RUST_LOG=INFO,brepviewer=DEBUG
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}"
             export rust_toolchain="${rustToolchain}"
             run-wasm() {
@@ -104,7 +107,7 @@
             }
             # Revert winit-force-X11
             winit-unset-X11() {
-              unset WINIT_UNIX_BACKEND=x11
+              unset WINIT_UNIX_BACKEND
               export WAYLAND_DISPLAY="$OLD_WAYLAND_DISPLAY"
               export XDG_SESSION_TYPE="$OLD_XDG_SESSION_TYPE"
             }
