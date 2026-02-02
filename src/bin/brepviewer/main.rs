@@ -1,11 +1,13 @@
 use std::sync::Arc;
+
 // Dependencies
 #[allow(unused_imports)]
-use log::{error, warn, info, debug, trace};
+use log::{debug, error, info, trace, warn};
 use winit::{
     application::ApplicationHandler,
-    event::WindowEvent,
+    event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
+    keyboard::Key,
     window::Window,
 };
 // Local modules
@@ -47,20 +49,24 @@ impl ApplicationHandler for App {
                 if v == true {
                     info!("Window {:?} was focused.", id);
                 }
-            },
+            }
             WindowEvent::RedrawRequested => {
                 let _ = state.render();
-            },
+            }
             WindowEvent::Resized(size) => {
                 state.resize(size);
-            },
+            }
             WindowEvent::KeyboardInput { event, .. } => {
                 debug!("Key event: {:?}", event);
-            },
+                match event {
+                    KeyEvent => (),
+                    _ => (),
+                }
+            }
             WindowEvent::CloseRequested => {
                 info!("Window is now closing.");
                 event_loop.exit();
-            },
+            }
             _ => (),
         }
     }

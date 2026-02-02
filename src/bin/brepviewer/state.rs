@@ -1,7 +1,8 @@
 use std::sync::Arc;
+
 // Dependencies
 #[allow(unused_imports)]
-use log::{error, warn, info, debug, trace};
+use log::{debug, error, info, trace, warn};
 use winit::{dpi::PhysicalSize, window::Window};
 // Local modules
 //use super::mesh::Mesh;
@@ -31,7 +32,6 @@ impl State {
     ///     3. Pipeline Creation
     ///     4. Window Attachment
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
-        debug!("Entering State::new()");
         // API & Device Setup: {{{
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
@@ -140,7 +140,6 @@ impl State {
             cache: None,
         });
         //}}}
-        debug!("Exiting State::new()");
         Ok(Self {
             window,
             device,
