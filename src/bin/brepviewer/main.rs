@@ -49,13 +49,13 @@ impl ApplicationHandler for App {
                 if v == true {
                     info!("Window {:?} was focused.", id);
                 }
-            }
+            },
             WindowEvent::RedrawRequested => {
                 let _ = state.render();
-            }
+            },
             WindowEvent::Resized(size) => {
                 state.resize(size);
-            }
+            },
             WindowEvent::KeyboardInput {
                 event: KeyEvent {
                     physical_key: PhysicalKey::Code(code),
