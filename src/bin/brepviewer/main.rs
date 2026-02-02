@@ -7,7 +7,7 @@ use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
-    keyboard::Key,
+    keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
 // Local modules
@@ -56,13 +56,20 @@ impl ApplicationHandler for App {
             WindowEvent::Resized(size) => {
                 state.resize(size);
             }
-            WindowEvent::KeyboardInput { event, .. } => {
-                debug!("Key event: {:?}", event);
-                match event {
-                    KeyEvent => (),
+            WindowEvent::KeyboardInput {
+                event: KeyEvent {
+                    physical_key: PhysicalKey::Code(code),
+                    state: key_state,
+                    ..
+                },
+                ..
+            } => {
+                trace!("Key event: code = {:?}, is_pressed = {:?}", code, key_state.is_pressed());
+                match (code, key_state.is_pressed()) {
+                    (KeyCode::KeyQ, true) => event_loop.exit(),
                     _ => (),
                 }
-            }
+            },
             WindowEvent::CloseRequested => {
                 info!("Window is now closing.");
                 event_loop.exit();
