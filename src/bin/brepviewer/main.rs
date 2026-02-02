@@ -73,7 +73,7 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => {
                 info!("Window is now closing.");
                 event_loop.exit();
-            }
+            },
             _ => (),
         }
     }
