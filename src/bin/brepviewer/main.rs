@@ -13,7 +13,6 @@ use winit::{
 // Local modules
 //mod mesh;
 mod state;
-mod mesh;
 use state::State;
 
 /// Handle for a graphical application.
