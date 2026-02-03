@@ -51,10 +51,34 @@ impl ApplicationHandler for App {
                 }
             },
             WindowEvent::RedrawRequested => {
-                let _ = state.render();
+                match state.render() {
+                    Err(e) => {
+                        error!("state.render() returned error: {:?}", e);
+                        panic!();
+                    },
+                    _ => ()
+                }
             },
             WindowEvent::Resized(size) => {
                 state.resize(size);
+            },
+            WindowEvent::CloseRequested => {
+                info!("Window is now closing.");
+                event_loop.exit();
+            },
+            WindowEvent::MouseInput {
+                button,
+                state: button_state,
+                ..
+            } => {
+                if log_mouse_event() {
+                    debug!("Mouse event: button = {:?}, is_pressed = {:?}", button, button_state);
+                }
+            },
+            WindowEvent::CursorMoved { position, .. } => {
+                if log_mouse_event() {
+                    debug!("Mouse event: position = {:?}", position);
+                }
             },
             WindowEvent::KeyboardInput {
                 event: KeyEvent {
@@ -64,19 +88,25 @@ impl ApplicationHandler for App {
                 },
                 ..
             } => {
-                trace!("Key event: code = {:?}, is_pressed = {:?}", code, key_state.is_pressed());
+                if log_key_event() {
+                    debug!("Key event: code = {:?}, is_pressed = {:?}", code, key_state.is_pressed());
+                }
                 match (code, key_state.is_pressed()) {
                     (KeyCode::KeyQ, true) => event_loop.exit(),
-                    _ => (),
+                    _ => ()
                 }
             },
-            WindowEvent::CloseRequested => {
-                info!("Window is now closing.");
-                event_loop.exit();
-            },
-            _ => (),
+            _ => ()
         }
     }
+}
+
+fn log_mouse_event() -> bool {
+    false
+}
+
+fn log_key_event() -> bool {
+    true
 }
 
 fn main() {
