@@ -3,6 +3,7 @@ use std::{iter, sync::Arc};
 // Dependencies
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::Window};
 // Local modules
 //use super::mesh::Mesh;
@@ -19,11 +20,57 @@ pub struct State {
     surface: wgpu::Surface<'static>,
     /// Configuration for [`State::surface`].
     surface_config: wgpu::SurfaceConfiguration,
+    vertex_buffer: wgpu::Buffer,
+    vertex_count: u32,
+    index_buffer: wgpu::Buffer,
+    index_count: u32,
     /// The actual render pipeline, which outlines the shader and resource layouts.
     pipeline: wgpu::RenderPipeline,
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 3],
+}
+
+impl Vertex {
+    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                // Position
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                // Color
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+            ],
+        }
+    }
+}
+
 impl State {
+    #[rustfmt::skip]
+    const VERTICES: &[Vertex] = &[
+        Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.4131759, 0.00759614, 0.0], }, // A
+        Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.0048659444, 0.43041354, 0.0], }, // B
+        Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.28081453, 0.949397, 0.0], }, // C
+        Vertex { position: [0.35966998, -0.3473291, 0.0], color: [0.85967, 0.84732914, 0.0], }, // D
+        Vertex { position: [0.44147372, 0.2347359, 0.0], color: [0.9414737, 0.2652641, 0.0], }, // E
+    ];
+
+    #[rustfmt::skip]
+    const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
+
     /// Creates a new graphics pipeline for [`super::App`]
     ///
     /// The graphics pipeline creation process consists of these discrete stages:
@@ -87,7 +134,7 @@ impl State {
             view_formats: vec![],
         };
         //}}}
-        // Pipeline Creation: {{{
+        // Pipeline & Buffer Creation: {{{
         let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
@@ -99,6 +146,20 @@ impl State {
             immediate_size: 0,
         });
 
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(Self::VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let vertex_count = Self::VERTICES.len() as u32;
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(Self::INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let index_count = Self::INDICES.len() as u32;
+
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&pipeline_layout),
@@ -106,7 +167,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: Some("vs_main"),
-                buffers: &[],
+                buffers: &[Vertex::desc()],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             // Fragment shader stage
@@ -146,6 +207,10 @@ impl State {
             queue,
             surface,
             surface_config,
+            vertex_buffer,
+            vertex_count,
+            index_buffer,
+            index_count,
             pipeline,
         })
     }
@@ -207,8 +272,9 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.pipeline);
-            // Hard-coded triangle data in shader.wgsl
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
         }
         self.queue.submit(iter::once(encoder.finish()));
         output.present();

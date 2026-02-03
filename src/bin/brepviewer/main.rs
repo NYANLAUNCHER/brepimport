@@ -102,11 +102,11 @@ impl ApplicationHandler for App {
     }
 }
 
-fn log_mouse_event() -> bool {
+const fn log_mouse_event() -> bool {
     false
 }
 
-fn log_key_event() -> bool {
+const fn log_key_event() -> bool {
     true
 }
 
