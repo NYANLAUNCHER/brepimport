@@ -171,7 +171,7 @@ impl State {
     //pub fn render_mesh<T>(&mut self, mesh: Mesh<T>) -> Result<(), wgpu::SurfaceError> {
     //}
 
-    /// Renders to Surface. 
+    /// Renders to Surface. Uses self.vertex_buffer & self.index_buffer.
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
         let output = self.surface.get_current_texture()?;

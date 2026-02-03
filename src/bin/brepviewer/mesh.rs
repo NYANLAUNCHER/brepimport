@@ -11,7 +11,7 @@ use wgpu::{util::DeviceExt, wgc::id::markers::Device};
 //unsafe impl bytemuck::Zeroable for Vertex {}
 
 pub trait Vertex: bytemuck::Pod + bytemuck::Zeroable {
-    /// Return the layout of the vertex attributes
+    /// Returns the layout of the vertex attributes.
     ///
     /// # Example
     /// ```
@@ -55,6 +55,7 @@ pub struct Mesh<T: Vertex> {
     _marker: std::marker::PhantomData<T>,
 }
 
+/// Functions and methods for loading and manipulating raw mesh data on a wgpu device.
 impl<T: Vertex> Mesh<T> {
     /// Allocates a new mesh resource on the device.
     pub fn new(device: wgpu::Device) -> Self {
@@ -109,3 +110,9 @@ impl<T: Vertex> Mesh<T> {
         mesh
     }
 }
+
+///// Contains both a mesh and a model transform matrix
+//pub struct Model<T: Vertex> {
+//    mesh: Mesh<T>,
+//    transform: cgmath::Matrix<u32>,
+//}
