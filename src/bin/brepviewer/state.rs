@@ -3,7 +3,7 @@ use std::{iter, sync::Arc};
 // Dependencies
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use wgpu::util::DeviceExt;
+use wgpu::VertexBufferLayout;
 use winit::{dpi::PhysicalSize, window::Window};
 // Local modules
 //use super::mesh::Mesh;
@@ -20,12 +20,13 @@ pub struct State {
     surface: wgpu::Surface<'static>,
     /// Configuration for [`State::surface`].
     surface_config: wgpu::SurfaceConfiguration,
-    vertex_buffer: wgpu::Buffer,
-    vertex_count: u32,
-    index_buffer: wgpu::Buffer,
-    index_count: u32,
     /// The actual render pipeline, which outlines the shader and resource layouts.
     pipeline: wgpu::RenderPipeline,
+    /// Pipeline info specific to State
+    pipeline_info: PipelineInfo,
+    //vertex_layout: VertexBufferLayout<'static>,
+    //vertex_buffer: Option<wgpu::Buffer>,
+    //index_buffer: Option<wgpu::Buffer>,
 }
 
 #[repr(C)]
@@ -36,7 +37,7 @@ pub struct Vertex {
 }
 
 impl Vertex {
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+    pub fn layout() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -58,19 +59,24 @@ impl Vertex {
     }
 }
 
+/// Struct used for State::create_pipeline()
+/// Makes it easy to pass State pipeline info around
+pub struct PipelineInfo {
+    vertex_layout: VertexBufferLayout<'static>,
+    vertex_buffer: Option<wgpu::Buffer>,
+    index_buffer: Option<wgpu::Buffer>,
+    /// The function name for the vertex entry point
+    vertex_entry: Option<&'static str>,
+    /// The function name for the fragment entry point
+    fragment_entry: Option<&'static str>,
+}
+
 impl State {
-    #[rustfmt::skip]
-    const VERTICES: &[Vertex] = &[
-        Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.4131759, 0.00759614, 0.0], }, // A
-        Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.0048659444, 0.43041354, 0.0], }, // B
-        Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.28081453, 0.949397, 0.0], }, // C
-        Vertex { position: [0.35966998, -0.3473291, 0.0], color: [0.85967, 0.84732914, 0.0], }, // D
-        Vertex { position: [0.44147372, 0.2347359, 0.0], color: [0.9414737, 0.2652641, 0.0], }, // E
-    ];
-
-    #[rustfmt::skip]
-    const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
-
+    /// Associated function for creating a render pipeline for State
+    pub fn create_pipeline(
+        pipeline_info: PipelineInfo
+    ) -> wgpu::RenderPipeline {
+    }
     /// Creates a new graphics pipeline for [`super::App`]
     ///
     /// The graphics pipeline creation process consists of these discrete stages:
@@ -78,7 +84,11 @@ impl State {
     ///     2. Surface Configuration
     ///     3. Pipeline Creation
     ///     4. Window Attachment
-    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
+    pub async fn new(
+        window: Arc<Window>,
+        // If this isn't specified, you must later call update_pipeline() before running render()
+        vertex_layout: Option<VertexBufferLayout<'static>>,
+    ) -> anyhow::Result<Self> {
         // API & Device Setup: {{{
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
@@ -146,20 +156,6 @@ impl State {
             immediate_size: 0,
         });
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(Self::VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let vertex_count = Self::VERTICES.len() as u32;
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(Self::INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let index_count = Self::INDICES.len() as u32;
-
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&pipeline_layout),
@@ -167,7 +163,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc()],
+                buffers: &[vertex_layout.clone()],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             // Fragment shader stage
@@ -207,12 +203,24 @@ impl State {
             queue,
             surface,
             surface_config,
-            vertex_buffer,
-            vertex_count,
-            index_buffer,
-            index_count,
             pipeline,
+            pipeline_info,
         })
+    }
+
+    /// Use a different render pipeline
+    pub fn update_pipeline(
+        &mut self,
+        pipeline: wgpu::RenderPipeline,
+        vertex_layout: VertexBufferLayout<'static>,
+        vertex_buffer: Option<wgpu::Buffer>,
+        index_buffer: Option<wgpu::Buffer>,
+    ) -> Result<(), anyhow::Error> {
+        self.pipeline = pipeline;
+        self.vertex_layout = vertex_layout;
+        self.vertex_buffer = vertex_buffer;
+        self.index_buffer = index_buffer;
+        Ok(())
     }
 
     /// Resize Surface to match window size.
@@ -226,13 +234,13 @@ impl State {
         }
     }
 
-    /// Updates internal state, independent of render pipeline.
+    /// Updates internal state for render().
     ///
-    /// Updates things like matrices and vectors.
+    /// Used to update things like matrices and vectors.
     pub fn update(&mut self) {}
 
-    /// Renders a Mesh object.
-    //pub fn render_mesh<T>(&mut self, mesh: Mesh<T>) -> Result<(), wgpu::SurfaceError> {
+    /// Renders a Model object.
+    //pub fn render_model<T>(&mut self, mesh: Model<T>) -> Result<(), wgpu::SurfaceError> {
     //}
 
     /// Renders to Surface. Uses self.vertex_buffer & self.index_buffer.
@@ -271,9 +279,18 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.pipeline);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
+
+            if let Some(vertex_buffer) = &self.vertex_buffer {
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            } else {
+                warn!("State.render(): No vertex_buffer was specified in struct `State`.");
+            }
+
+            if let Some(index_buffer) = &self.index_buffer {
+                let index_count = 1u32;
+                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.draw_indexed(0..index_count, 0, 0..1);
+            }
         }
         self.queue.submit(iter::once(encoder.finish()));
         output.present();

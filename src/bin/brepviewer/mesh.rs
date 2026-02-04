@@ -1,21 +1,34 @@
-use std::path::Path;
+// Dependencies
+use wgpu::{VertexBufferLayout, util::DeviceExt};
 
-use wgpu::{util::DeviceExt, wgc::id::markers::Device};
-
-//#[repr(C)]
-//#[derive(Copy, Clone, Debug)]
-//struct Vertex {
-//    data: &'static [u8]
-//}
-//unsafe impl bytemuck::Pod for Vertex {}
-//unsafe impl bytemuck::Zeroable for Vertex {}
-
+/// Trait to implement vertex buffers
+///
+/// # Example Boilerplate
+/// ```
+/// use bytemuck::{Pod, Zeroable};
+/// #[repr(C)]
+/// #[derive(Copy, Clone, Debug, Pod, Zeroable)]
+/// /// Contains a position and a color attribute
+/// struct MyVertex<'a> {
+///     /// Position attribute. Assumes W component = 1.0.
+///     position: [f32; 3],
+///     /// Color attribute. Assumes alpha = 1.0.
+///     color: [f32; 3],
+/// }
+/// impl Vertex for MyVertex {
+///     /// See: [`Vertex::layout()`] for implementation example
+///     fn layout(&self) -> wgpu::VertexBufferLayout<'static> {/*...*/}
+///
+///     /// See: [`Vertex::data()`] for implementation example
+///     fn data<'a>(&self) -> &'a [u8] {/*...*/}
+/// }
+/// ```
 pub trait Vertex: bytemuck::Pod + bytemuck::Zeroable {
     /// Returns the layout of the vertex attributes.
     ///
     /// # Example
     /// ```
-    /// pub fn layout() -> wgpu::VertexBufferLayout<'static> {
+    /// fn layout() -> wgpu::VertexBufferLayout<'static> {
     ///     wgpu::VertexBufferLayout {
     ///         array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
     ///         step_mode: wgpu::VertexStepMode::Vertex,
@@ -44,19 +57,21 @@ pub trait Vertex: bytemuck::Pod + bytemuck::Zeroable {
     fn data<'a>(&self) -> &'a [u8];
 }
 
-/// A mesh resource handle for wgpu. Guarantees vertex layout uniformity.
-pub struct Mesh<T: Vertex> {
+/// A mesh resource handle for wgpu.
+///
+/// Guarantees vertex layout uniformity. Doesn't support buffer suballocation.
+pub struct Mesh<V: Vertex> {
     /// The device the mesh is being stored at
     device: wgpu::Device,
     vertex_buffer: wgpu::Buffer,
     vertex_count: u32,
     index_buffer: Option<wgpu::Buffer>,
     index_count: u32,
-    _marker: std::marker::PhantomData<T>,
+    _marker: std::marker::PhantomData<V>,
 }
 
 /// Functions and methods for loading and manipulating raw mesh data on a wgpu device.
-impl<T: Vertex> Mesh<T> {
+impl<V: Vertex> Mesh<V> {
     /// Allocates a new mesh resource on the device.
     pub fn new(device: wgpu::Device) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -80,7 +95,7 @@ impl<T: Vertex> Mesh<T> {
     }
 
     /// Allocates a new mesh resource on the device from a slice of vertices.
-    pub fn from(device: wgpu::Device, vertices: &[T], indices: &[u16]) -> Self {
+    pub fn from(device: wgpu::Device, vertices: &[V], indices: &[u16]) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Mesh: Vertex Buffer"),
             contents: bytemuck::cast_slice(vertices),
@@ -100,18 +115,9 @@ impl<T: Vertex> Mesh<T> {
             _marker: std::marker::PhantomData,
         }
     }
-
-    /// Creates a new Mesh from a file
-    pub fn load(device: wgpu::Device, file_path: &Path) -> Self {
-        todo!("Load file @ file_path then parse it into mesh.");
-        let mesh = {
-            Self::new(device)
-        };
-        mesh
-    }
 }
 
-///// Contains both a mesh and a model transform matrix
+///// Contains a Mesh handle and a corresponding transform matrix
 //pub struct Model<T: Vertex> {
 //    mesh: Mesh<T>,
 //    transform: cgmath::Matrix<u32>,

@@ -11,7 +11,7 @@ use winit::{
     window::Window,
 };
 // Local modules
-//mod mesh;
+mod mesh;
 mod state;
 use state::State;
 
@@ -29,7 +29,7 @@ impl ApplicationHandler for App {
         let window_attributes = Window::default_attributes().with_title("A fantastic window!");
         let window = event_loop.create_window(window_attributes).unwrap();
         let window = Arc::new(window);
-        self.state = Some(pollster::block_on(State::new(window)).unwrap());
+        self.state = Some(pollster::block_on(State::new(window, None)).unwrap());
         info!("Window was created.");
     }
 
