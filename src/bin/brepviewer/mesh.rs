@@ -117,8 +117,8 @@ impl<V: Vertex> Mesh<V> {
     }
 }
 
-///// Contains a Mesh handle and a corresponding transform matrix
-//pub struct Model<T: Vertex> {
-//    mesh: Mesh<T>,
-//    transform: cgmath::Matrix<u32>,
-//}
+/// Contains a Mesh handle and a corresponding transform matrix
+pub struct Model<V: Vertex> {
+    mesh: Mesh<V>,
+    trans: cgmath::Matrix4<u32>,
+}

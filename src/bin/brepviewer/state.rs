@@ -3,17 +3,16 @@ use std::{iter, sync::Arc};
 // Dependencies
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use wgpu::VertexBufferLayout;
 use winit::{dpi::PhysicalSize, window::Window};
 // Local modules
 //use super::mesh::Mesh;
 
 /// Represents the graphical state of [`super::App`]
-pub struct State {
+pub struct State<'a> {
     /// Platform dependent window handle
     pub window: Arc<Window>,
     /// Represents the physical graphics device or GPU.
-    device: wgpu::Device,
+    pub device: wgpu::Device,
     /// The GPU's work queue.
     queue: wgpu::Queue,
     /// Represents a surface on which to render graphics, see: [`wgpu::Surface`].
@@ -23,62 +22,98 @@ pub struct State {
     /// The actual render pipeline, which outlines the shader and resource layouts.
     pipeline: wgpu::RenderPipeline,
     /// Pipeline info specific to State
-    pipeline_info: PipelineInfo,
-    //vertex_layout: VertexBufferLayout<'static>,
-    //vertex_buffer: Option<wgpu::Buffer>,
-    //index_buffer: Option<wgpu::Buffer>,
+    pipeline_info: PipelineInfo<'a>,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub color: [f32; 3],
+/// Info struct to create a render pipeline using [`State::create_pipeline()`].
+#[derive(Clone)]
+pub struct PipelineInfo<'a> {
+    pub vertex_layout: wgpu::VertexBufferLayout<'a>,
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: Option<wgpu::Buffer>,
+    pub shader_info: ShaderInfo<'a>,
+    //pub render_info: PipelineRenderInfo,
 }
 
-impl Vertex {
-    pub fn layout() -> wgpu::VertexBufferLayout<'static> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                // Position
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                // Color
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
+///// Info struct used to render the pipeline in [`State::render()`]
+//#[derive(Clone)]
+//pub struct PipelineRenderInfo {
+//}
 
-/// Struct used for State::create_pipeline()
-/// Makes it easy to pass State pipeline info around
-pub struct PipelineInfo {
-    vertex_layout: VertexBufferLayout<'static>,
-    vertex_buffer: Option<wgpu::Buffer>,
-    index_buffer: Option<wgpu::Buffer>,
+/// Info struct used to create shader modules in [`State::create_pipeline()`].
+#[derive(Clone)]
+pub struct ShaderInfo<'a> {
+    pub desc: wgpu::ShaderModuleDescriptor<'a>,
     /// The function name for the vertex entry point
-    vertex_entry: Option<&'static str>,
+    pub vertex_entry: Option<&'a str>,
     /// The function name for the fragment entry point
-    fragment_entry: Option<&'static str>,
+    pub fragment_entry: Option<&'a str>,
 }
 
-impl State {
-    /// Associated function for creating a render pipeline for State
+impl<'a> State<'a> {
+    /// Associated function for creating a render pipeline in [`State`].
     pub fn create_pipeline(
-        pipeline_info: PipelineInfo
-    ) -> wgpu::RenderPipeline {
+        device: &wgpu::Device,
+        surface_config: &wgpu::SurfaceConfiguration,
+        info: PipelineInfo,
+    ) -> wgpu::RenderPipeline {//{{{
+        let shader_module = device.create_shader_module(info.shader_info.desc);
+        let vertex_entry = info.shader_info.vertex_entry;
+        let fragment_entry = info.shader_info.fragment_entry;
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Render Pipeline Layout"),
+            bind_group_layouts: &[],
+            immediate_size: 0,
+        });
+
+        // Create the wgpu::RenderPipeline
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            // Vertex shader stage
+            vertex: wgpu::VertexState {
+                module: &shader_module,
+                entry_point: vertex_entry,
+                buffers: &[info.vertex_layout.clone()],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
+            // Fragment shader stage
+            fragment: Some(wgpu::FragmentState {
+                module: &shader_module,
+                entry_point: fragment_entry,
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: surface_config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            }),
+            // Primitive shader stage
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0u64, // bitwise not; 000...0 -> 111...1
+                alpha_to_coverage_enabled: false,
+            },
+            multiview_mask: None,
+            cache: None,
+        })
     }
+    //}}}
+
     /// Creates a new graphics pipeline for [`super::App`]
     ///
+    /// # Overview
     /// The graphics pipeline creation process consists of these discrete stages:
     ///     1. Device & Queue setup
     ///     2. Surface Configuration
@@ -86,8 +121,7 @@ impl State {
     ///     4. Window Attachment
     pub async fn new(
         window: Arc<Window>,
-        // If this isn't specified, you must later call update_pipeline() before running render()
-        vertex_layout: Option<VertexBufferLayout<'static>>,
+        pipeline_info: PipelineInfo<'a>,
     ) -> anyhow::Result<Self> {
         // API & Device Setup: {{{
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
@@ -144,59 +178,7 @@ impl State {
             view_formats: vec![],
         };
         //}}}
-        // Pipeline & Buffer Creation: {{{
-        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-        });
-
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[],
-            immediate_size: 0,
-        });
-
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&pipeline_layout),
-            // Vertex shader stage
-            vertex: wgpu::VertexState {
-                module: &shader_module,
-                entry_point: Some("vs_main"),
-                buffers: &[vertex_layout.clone()],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            // Fragment shader stage
-            fragment: Some(wgpu::FragmentState {
-                module: &shader_module,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            // Primitive shader stage
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0u64, // bitwise not; 000...0 -> 111...1
-                alpha_to_coverage_enabled: false,
-            },
-            multiview_mask: None,
-            cache: None,
-        });
-        //}}}
+        let pipeline = Self::create_pipeline(&device, &surface_config, pipeline_info.clone());
         Ok(Self {
             window,
             device,
@@ -209,19 +191,15 @@ impl State {
     }
 
     /// Use a different render pipeline
-    pub fn update_pipeline(
-        &mut self,
-        pipeline: wgpu::RenderPipeline,
-        vertex_layout: VertexBufferLayout<'static>,
-        vertex_buffer: Option<wgpu::Buffer>,
-        index_buffer: Option<wgpu::Buffer>,
-    ) -> Result<(), anyhow::Error> {
-        self.pipeline = pipeline;
-        self.vertex_layout = vertex_layout;
-        self.vertex_buffer = vertex_buffer;
-        self.index_buffer = index_buffer;
-        Ok(())
-    }
+    //pub fn update_pipeline(
+    //    &mut self,
+    //    pipeline: wgpu::RenderPipeline,
+    //    pipeline_info: PipelineInfo,
+    //) -> Result<(), anyhow::Error> {
+    //    self.pipeline = pipeline;
+    //    self.pipeline_info = pipeline_info;
+    //    Ok(())
+    //}
 
     /// Resize Surface to match window size.
     pub fn resize(&mut self, size: PhysicalSize<u32>) {
@@ -238,10 +216,6 @@ impl State {
     ///
     /// Used to update things like matrices and vectors.
     pub fn update(&mut self) {}
-
-    /// Renders a Model object.
-    //pub fn render_model<T>(&mut self, mesh: Model<T>) -> Result<(), wgpu::SurfaceError> {
-    //}
 
     /// Renders to Surface. Uses self.vertex_buffer & self.index_buffer.
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -280,15 +254,13 @@ impl State {
 
             render_pass.set_pipeline(&self.pipeline);
 
-            if let Some(vertex_buffer) = &self.vertex_buffer {
-                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            } else {
-                warn!("State.render(): No vertex_buffer was specified in struct `State`.");
-            }
+            let vertex_buffer = &self.pipeline_info.vertex_buffer;
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
 
-            if let Some(index_buffer) = &self.index_buffer {
+            let index_buffer = &self.pipeline_info.index_buffer;
+            if let Some(idx_buf) = index_buffer {
                 let index_count = 1u32;
-                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.set_index_buffer(idx_buf.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..index_count, 0, 0..1);
             }
         }

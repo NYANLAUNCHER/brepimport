@@ -17,18 +17,19 @@ use state::State;
 
 /// Handle for a graphical application.
 #[derive(Default)]
-struct App {
+struct App<'a> {
     /// The graphical state of [`App`]
-    state: Option<State>,
+    state: Option<State<'a>>,
 }
 
-impl ApplicationHandler for App {
+impl ApplicationHandler for App<'_> {
     /// Creates the window and event loop
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         info!("Creating new Window");
         let window_attributes = Window::default_attributes().with_title("A fantastic window!");
         let window = event_loop.create_window(window_attributes).unwrap();
         let window = Arc::new(window);
+
         self.state = Some(pollster::block_on(State::new(window, None)).unwrap());
         info!("Window was created.");
     }
