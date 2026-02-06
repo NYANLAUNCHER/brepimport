@@ -21,24 +21,21 @@ pub struct State<'a> {
     surface_config: wgpu::SurfaceConfiguration,
     /// The actual render pipeline, which outlines the shader and resource layouts.
     pipeline: wgpu::RenderPipeline,
-    /// Pipeline info specific to State
-    pipeline_info: PipelineInfo<'a>,
+    vertex_layout: wgpu::VertexBufferLayout<'a>,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: Option<wgpu::Buffer>,
 }
 
 /// Info struct to create a render pipeline using [`State::create_pipeline()`].
 #[derive(Clone)]
 pub struct PipelineInfo<'a> {
     pub vertex_layout: wgpu::VertexBufferLayout<'a>,
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: Option<wgpu::Buffer>,
+    pub vertex_buffer_init: wgpu::util::BufferInitDescriptor<'a>,
+    pub index_buffer_init: Option<wgpu::util::BufferInitDescriptor<'a>>,
+    pub front_face: wgpu::FrontFace,
+    pub cull_mode: Option<wgpu::Face>,
     pub shader_info: ShaderInfo<'a>,
-    //pub render_info: PipelineRenderInfo,
 }
-
-///// Info struct used to render the pipeline in [`State::render()`]
-//#[derive(Clone)]
-//pub struct PipelineRenderInfo {
-//}
 
 /// Info struct used to create shader modules in [`State::create_pipeline()`].
 #[derive(Clone)]
@@ -51,7 +48,7 @@ pub struct ShaderInfo<'a> {
 }
 
 impl<'a> State<'a> {
-    /// Associated function for creating a render pipeline in [`State`].
+    /// Associated function for creating a render pipeline
     pub fn create_pipeline(
         device: &wgpu::Device,
         surface_config: &wgpu::SurfaceConfiguration,
@@ -93,8 +90,8 @@ impl<'a> State<'a> {
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                front_face: info.front_face,
+                cull_mode: info.cull_mode,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
@@ -190,18 +187,21 @@ impl<'a> State<'a> {
         })
     }
 
-    /// Use a different render pipeline
-    //pub fn update_pipeline(
-    //    &mut self,
-    //    pipeline: wgpu::RenderPipeline,
-    //    pipeline_info: PipelineInfo,
-    //) -> Result<(), anyhow::Error> {
-    //    self.pipeline = pipeline;
-    //    self.pipeline_info = pipeline_info;
-    //    Ok(())
-    //}
+    /// Creates a new pipeline for State using [`State::create_pipeline()`]
+    pub fn update_pipeline(
+        &mut self,
+        pipeline_info: PipelineInfo<'a>,
+    ) -> Result<(), anyhow::Error> {
+        let info = pipeline_info.clone();
+        self.pipeline = Self::create_pipeline(&self.device, &self.surface_config, pipeline_info);
+        self.pipeline_info = info;
+        Ok(())
+    }
 
     /// Resize Surface to match window size.
+    ///
+    /// Meant to be called from ApplicationHandler::window_event() when reciving
+    /// WindowEvent::Resized.
     pub fn resize(&mut self, size: PhysicalSize<u32>) {
         let width = size.width;
         let height = size.height;

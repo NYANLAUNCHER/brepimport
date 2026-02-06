@@ -15,12 +15,47 @@ mod mesh;
 mod state;
 use state::State;
 
+use crate::state::{PipelineInfo, ShaderInfo};
+
 /// Handle for a graphical application.
 #[derive(Default)]
 struct App<'a> {
     /// The graphical state of [`App`]
     state: Option<State<'a>>,
 }
+
+#[repr(C, packed)]
+struct MyVertex {
+    position: [f32; 3],
+    uv_coords: [f32; 2],
+}
+
+pub trait Vertex<'a> {
+    fn layout() -> wgpu::VertexBufferLayout<'a>;
+}
+
+impl<'a> Vertex<'a> for MyVertex {
+    fn layout() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &wgpu::vertex_attr_array![
+                0 => Float32x3,// position
+                1 => Float32x2,// uv_coords
+            ],
+        }
+    }
+}
+
+// Winding: CCW
+static VERTEX_DATA: &[MyVertex] = &[
+    // Top Center
+    MyVertex {position: [ 0.0, 0.5, 0.0], uv_coords: [0.5, 1.0]},
+    // Bottom Left
+    MyVertex {position: [-0.5,-0.5, 0.0], uv_coords: [0.0, 0.0]},
+    // Bottom Right
+    MyVertex {position: [ 0.5,-0.5, 0.0], uv_coords: [1.0, 0.0]},
+];
 
 impl ApplicationHandler for App<'_> {
     /// Creates the window and event loop
@@ -30,7 +65,26 @@ impl ApplicationHandler for App<'_> {
         let window = event_loop.create_window(window_attributes).unwrap();
         let window = Arc::new(window);
 
-        self.state = Some(pollster::block_on(State::new(window, None)).unwrap());
+        let info = PipelineInfo {
+            vertex_layout: MyVertex::layout(),
+            vertex_buffer_init: wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(VERTEX_DATA),
+                usage: wgpu::BufferUsages::VERTEX,
+            },
+            index_buffer_init: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: None,
+            shader_info: ShaderInfo {
+                desc: wgpu::ShaderModuleDescriptor {
+                    label: Some("Shader Model"),
+                    source: wgpu::ShaderSource::Wgsl(include_str!("./shader.wgsl").into()),
+                },
+                vertex_entry: Some("vs_main"),
+                fragment_entry: Some("fs_main"),
+            },
+        };
+        self.state = Some(pollster::block_on(State::new(window, info)).unwrap());
         info!("Window was created.");
     }
 
@@ -41,7 +95,7 @@ impl ApplicationHandler for App<'_> {
         event: winit::event::WindowEvent,
     ) {
         let state = match &mut self.state {
-            Some(canvas) => canvas,
+            Some(state) => state,
             None => return,
         };
         trace!("Received window event: {:?}", event);
