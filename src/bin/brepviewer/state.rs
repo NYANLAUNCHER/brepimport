@@ -3,6 +3,7 @@ use std::{iter, sync::Arc};
 // Dependencies
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::Window};
 // Local modules
 //use super::mesh::Mesh;
@@ -16,31 +17,41 @@ pub struct State<'a> {
     /// The GPU's work queue.
     queue: wgpu::Queue,
     /// Represents a surface on which to render graphics, see: [`wgpu::Surface`].
-    surface: wgpu::Surface<'static>,
+    surface: wgpu::Surface<'a>,
     /// Configuration for [`State::surface`].
     surface_config: wgpu::SurfaceConfiguration,
-    /// The actual render pipeline, which outlines the shader and resource layouts.
-    pipeline: wgpu::RenderPipeline,
-    vertex_layout: wgpu::VertexBufferLayout<'a>,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: Option<wgpu::Buffer>,
+    /// The pipeline resource for State
+    pipeline: PipelineResource,
 }
 
-/// Info struct to create a render pipeline using [`State::create_pipeline()`].
+/// A pipeline resource for [`State`]. It contains the render pipeline and its associated
+/// resources.
+pub struct PipelineResource {
+    /// The actual render pipeline
+    pub inner: wgpu::RenderPipeline,
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: Option<wgpu::Buffer>,
+}
+
+/// Info struct to create a [`PipelineResource`] resource for [`State`].
+/// Contains pipeline info agnostic of device or state data.
+use wgpu::{VertexBufferLayout, util::BufferInitDescriptor};
 #[derive(Clone)]
 pub struct PipelineInfo<'a> {
-    pub vertex_layout: wgpu::VertexBufferLayout<'a>,
-    pub vertex_buffer_init: wgpu::util::BufferInitDescriptor<'a>,
-    pub index_buffer_init: Option<wgpu::util::BufferInitDescriptor<'a>>,
+    pub vertex_layout: VertexBufferLayout<'a>,
+    pub vertex_buffer_init: BufferInitDescriptor<'a>,
+    pub index_buffer_init: Option<BufferInitDescriptor<'a>>,
     pub front_face: wgpu::FrontFace,
     pub cull_mode: Option<wgpu::Face>,
     pub shader_info: ShaderInfo<'a>,
 }
 
-/// Info struct used to create shader modules in [`State::create_pipeline()`].
+/// Info struct used to create a shader module for [`State`]
+use wgpu::ShaderModuleDescriptor;
 #[derive(Clone)]
 pub struct ShaderInfo<'a> {
-    pub desc: wgpu::ShaderModuleDescriptor<'a>,
+    /// Contains a label and the shader source for a given shader module
+    pub desc: ShaderModuleDescriptor<'a>,
     /// The function name for the vertex entry point
     pub vertex_entry: Option<&'a str>,
     /// The function name for the fragment entry point
@@ -48,15 +59,22 @@ pub struct ShaderInfo<'a> {
 }
 
 impl<'a> State<'a> {
-    /// Associated function for creating a render pipeline
+    /// Associated function for creating a [`PipelineResource`].
     pub fn create_pipeline(
         device: &wgpu::Device,
         surface_config: &wgpu::SurfaceConfiguration,
-        info: PipelineInfo,
-    ) -> wgpu::RenderPipeline {//{{{
+        info: PipelineInfo<'a>,
+    ) -> PipelineResource {
+        //{{{
         let shader_module = device.create_shader_module(info.shader_info.desc);
         let vertex_entry = info.shader_info.vertex_entry;
         let fragment_entry = info.shader_info.fragment_entry;
+
+        let vertex_buffer = device.create_buffer_init(&info.vertex_buffer_init);
+        let index_buffer = match info.index_buffer_init {
+            Some(init) => Some(device.create_buffer_init(&init)),
+            None => None,
+        };
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
@@ -65,7 +83,7 @@ impl<'a> State<'a> {
         });
 
         // Create the wgpu::RenderPipeline
-        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&pipeline_layout),
             // Vertex shader stage
@@ -104,7 +122,13 @@ impl<'a> State<'a> {
             },
             multiview_mask: None,
             cache: None,
-        })
+        });
+
+        PipelineResource {
+            inner: pipeline,
+            vertex_buffer,
+            index_buffer,
+        }
     }
     //}}}
 
@@ -116,10 +140,7 @@ impl<'a> State<'a> {
     ///     2. Surface Configuration
     ///     3. Pipeline Creation
     ///     4. Window Attachment
-    pub async fn new(
-        window: Arc<Window>,
-        pipeline_info: PipelineInfo<'a>,
-    ) -> anyhow::Result<Self> {
+    pub async fn new(window: Arc<Window>, pipeline_info: PipelineInfo<'a>) -> anyhow::Result<Self> {
         // API & Device Setup: {{{
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
@@ -183,19 +204,7 @@ impl<'a> State<'a> {
             surface,
             surface_config,
             pipeline,
-            pipeline_info,
         })
-    }
-
-    /// Creates a new pipeline for State using [`State::create_pipeline()`]
-    pub fn update_pipeline(
-        &mut self,
-        pipeline_info: PipelineInfo<'a>,
-    ) -> Result<(), anyhow::Error> {
-        let info = pipeline_info.clone();
-        self.pipeline = Self::create_pipeline(&self.device, &self.surface_config, pipeline_info);
-        self.pipeline_info = info;
-        Ok(())
     }
 
     /// Resize Surface to match window size.
@@ -213,11 +222,9 @@ impl<'a> State<'a> {
     }
 
     /// Updates internal state for render().
-    ///
-    /// Used to update things like matrices and vectors.
-    pub fn update(&mut self) {}
+    //pub fn update(&mut self) {}
 
-    /// Renders to Surface. Uses self.vertex_buffer & self.index_buffer.
+    /// Renders to Surface.
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
         let output = self.surface.get_current_texture()?;
@@ -252,16 +259,16 @@ impl<'a> State<'a> {
                 timestamp_writes: None,
             });
 
-            render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_pipeline(&self.pipeline.inner);
 
-            let vertex_buffer = &self.pipeline_info.vertex_buffer;
+            let vertex_buffer = &self.pipeline.vertex_buffer;
             render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
 
-            let index_buffer = &self.pipeline_info.index_buffer;
+            let index_buffer = &self.pipeline.index_buffer;
             if let Some(idx_buf) = index_buffer {
-                let index_count = 1u32;
+                let count = idx_buf.size() as u32;
                 render_pass.set_index_buffer(idx_buf.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..index_count, 0, 0..1);
+                render_pass.draw_indexed(0..count, 0, 0..1);
             }
         }
         self.queue.submit(iter::once(encoder.finish()));

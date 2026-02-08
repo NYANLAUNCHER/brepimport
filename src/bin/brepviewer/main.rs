@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+use bytemuck::{Pod, Zeroable};
 // Dependencies
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use wgpu::VertexAttribute;
 use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
@@ -11,7 +13,7 @@ use winit::{
     window::Window,
 };
 // Local modules
-mod mesh;
+//mod mesh;
 mod state;
 use state::State;
 
@@ -25,9 +27,17 @@ struct App<'a> {
 }
 
 #[repr(C, packed)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 struct MyVertex {
     position: [f32; 3],
     uv_coords: [f32; 2],
+}
+
+impl MyVertex {
+    const ATTRIBUTES: [VertexAttribute; 2] = wgpu::vertex_attr_array![
+        0 => Float32x3,// position
+        1 => Float32x2,// uv_coords
+    ];
 }
 
 pub trait Vertex<'a> {
@@ -39,10 +49,7 @@ impl<'a> Vertex<'a> for MyVertex {
         wgpu::VertexBufferLayout {
             array_stride: size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![
-                0 => Float32x3,// position
-                1 => Float32x2,// uv_coords
-            ],
+            attributes: &Self::ATTRIBUTES,
         }
     }
 }
