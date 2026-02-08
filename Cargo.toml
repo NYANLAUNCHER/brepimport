@@ -27,6 +27,9 @@ wasm-bindgen = "=0.2.106"
 bytemuck = { version = "1.24", features = [ "derive" ] }
 cgmath = "0.18"
 chrono = "0.4.43"
+tracing = "0.1.44"
+pretty-hex = "0.4.1"
+colored = "3.1.1"
 
 [dependencies.image]
 version = "0.24"

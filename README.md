@@ -1,5 +1,5 @@
 # Brepimport.rs
-A [Boundry REPresentation]() file format importer/loader library written in Rust.
+A [Boundry REPresentation](https://en.wikipedia.org/wiki/Boundary_representation) file format importer/loader library written in Rust.
 Also has optional feature flag to convert step files into brep format.
 
 ## Resources

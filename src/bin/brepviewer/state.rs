@@ -5,6 +5,8 @@ use std::{iter, sync::Arc};
 use log::{debug, error, info, trace, warn};
 use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::Window};
+use pretty_hex::PrettyHex;
+use colored::Colorize;
 // Local modules
 //use super::mesh::Mesh;
 
@@ -21,16 +23,17 @@ pub struct State<'a> {
     /// Configuration for [`State::surface`].
     surface_config: wgpu::SurfaceConfiguration,
     /// The pipeline resource for State
-    pipeline: PipelineResource,
+    pipeline: PipelineResource<'a>,
 }
 
 /// A pipeline resource for [`State`]. It contains the render pipeline and its associated
 /// resources.
-pub struct PipelineResource {
-    /// The actual render pipeline
+pub struct PipelineResource<'a> {
     pub inner: wgpu::RenderPipeline,
+    pub vertex_layout: VertexBufferLayout<'a>,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: Option<wgpu::Buffer>,
+    pub index_stride: u32,
 }
 
 /// Info struct to create a [`PipelineResource`] resource for [`State`].
@@ -40,7 +43,9 @@ use wgpu::{VertexBufferLayout, util::BufferInitDescriptor};
 pub struct PipelineInfo<'a> {
     pub vertex_layout: VertexBufferLayout<'a>,
     pub vertex_buffer_init: BufferInitDescriptor<'a>,
-    pub index_buffer_init: Option<BufferInitDescriptor<'a>>,
+    /// `0`: Stride (in bytes) of a single index
+    /// `1`: Buffer init descriptor
+    pub index_buffer_init: (u32, Option<BufferInitDescriptor<'a>>),
     pub front_face: wgpu::FrontFace,
     pub cull_mode: Option<wgpu::Face>,
     pub shader_info: ShaderInfo<'a>,
@@ -64,14 +69,21 @@ impl<'a> State<'a> {
         device: &wgpu::Device,
         surface_config: &wgpu::SurfaceConfiguration,
         info: PipelineInfo<'a>,
-    ) -> PipelineResource {
+    ) -> PipelineResource<'a> {
+        let contents = info.vertex_buffer_init.contents;
+        let pretty_fmt = format!("{:?}", contents.hex_dump()).blue();
+        info!("VBO contents:\n{}", pretty_fmt);
         //{{{
         let shader_module = device.create_shader_module(info.shader_info.desc);
         let vertex_entry = info.shader_info.vertex_entry;
         let fragment_entry = info.shader_info.fragment_entry;
 
+        let vertex_layout = info.vertex_layout;
         let vertex_buffer = device.create_buffer_init(&info.vertex_buffer_init);
-        let index_buffer = match info.index_buffer_init {
+
+        let index_stride = info.index_buffer_init.0;
+        let index_buffer_init = info.index_buffer_init.1;
+        let index_buffer = match index_buffer_init {
             Some(init) => Some(device.create_buffer_init(&init)),
             None => None,
         };
@@ -90,7 +102,7 @@ impl<'a> State<'a> {
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: vertex_entry,
-                buffers: &[info.vertex_layout.clone()],
+                buffers: &[vertex_layout.clone()],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             // Fragment shader stage
@@ -126,8 +138,10 @@ impl<'a> State<'a> {
 
         PipelineResource {
             inner: pipeline,
+            vertex_layout,
             vertex_buffer,
             index_buffer,
+            index_stride,
         }
     }
     //}}}
@@ -196,7 +210,7 @@ impl<'a> State<'a> {
             view_formats: vec![],
         };
         //}}}
-        let pipeline = Self::create_pipeline(&device, &surface_config, pipeline_info.clone());
+        let pipeline = Self::create_pipeline(&device, &surface_config, pipeline_info);
         Ok(Self {
             window,
             device,
@@ -221,8 +235,11 @@ impl<'a> State<'a> {
         }
     }
 
-    /// Updates internal state for render().
-    //pub fn update(&mut self) {}
+    /// Updates the current pipeline using [`PipelineInfo`].
+    #[allow(dead_code)]
+    pub fn update_pipeline(&mut self, info: PipelineInfo<'a>) {
+        self.pipeline = Self::create_pipeline(&self.device, &self.surface_config, info);
+    }
 
     /// Renders to Surface.
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -266,9 +283,14 @@ impl<'a> State<'a> {
 
             let index_buffer = &self.pipeline.index_buffer;
             if let Some(idx_buf) = index_buffer {
-                let count = idx_buf.size() as u32;
+                let index_stride = &self.pipeline.index_stride;
+                let count = (idx_buf.size() as u32) / index_stride;
                 render_pass.set_index_buffer(idx_buf.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..count, 0, 0..1);
+            } else { // If index wasn't provided
+                let vertex_stride = self.pipeline.vertex_layout.array_stride as u32;
+                let count = (vertex_buffer.size() as u32) / vertex_stride;
+                render_pass.draw(0..count, 0..1);
             }
         }
         self.queue.submit(iter::once(encoder.finish()));

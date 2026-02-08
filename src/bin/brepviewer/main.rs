@@ -30,13 +30,13 @@ struct App<'a> {
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct MyVertex {
     position: [f32; 3],
-    uv_coords: [f32; 2],
+    color: [f32; 3],
 }
 
 impl MyVertex {
     const ATTRIBUTES: [VertexAttribute; 2] = wgpu::vertex_attr_array![
         0 => Float32x3,// position
-        1 => Float32x2,// uv_coords
+        1 => Float32x3,// color
     ];
 }
 
@@ -57,11 +57,11 @@ impl<'a> Vertex<'a> for MyVertex {
 // Winding: CCW
 static VERTEX_DATA: &[MyVertex] = &[
     // Top Center
-    MyVertex {position: [ 0.0, 0.5, 0.0], uv_coords: [0.5, 1.0]},
+    MyVertex {position: [ 0.0, 0.5, 0.1], color: [1.0, 0.0, 0.0]},
     // Bottom Left
-    MyVertex {position: [-0.5,-0.5, 0.0], uv_coords: [0.0, 0.0]},
+    MyVertex {position: [-0.5,-0.5, 0.1], color: [0.0, 1.0, 0.0]},
     // Bottom Right
-    MyVertex {position: [ 0.5,-0.5, 0.0], uv_coords: [1.0, 0.0]},
+    MyVertex {position: [ 0.5,-0.5, 0.1], color: [0.0, 0.0, 1.0]},
 ];
 
 impl ApplicationHandler for App<'_> {
@@ -79,7 +79,7 @@ impl ApplicationHandler for App<'_> {
                 contents: bytemuck::cast_slice(VERTEX_DATA),
                 usage: wgpu::BufferUsages::VERTEX,
             },
-            index_buffer_init: None,
+            index_buffer_init: (0, None),
             front_face: wgpu::FrontFace::Ccw,
             cull_mode: None,
             shader_info: ShaderInfo {

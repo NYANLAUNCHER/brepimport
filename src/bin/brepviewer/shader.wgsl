@@ -9,10 +9,10 @@ struct VertexOutput {
 }
 
 @vertex
-fn vs_main(mesh: VertexInput) -> VertexOutput {
+fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.color = mesh.color;
-    out.clip_position = vec4<f32>(mesh.position, 1.0);
+    out.color = in.color;
+    out.clip_position = vec4<f32>(in.position, 1.0);
     return out;
 }
 
