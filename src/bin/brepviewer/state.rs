@@ -1,13 +1,13 @@
 use std::{iter, sync::Arc};
 
 // Dependencies
+use colored::Colorize;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use wgpu::util::DeviceExt;
-use winit::{dpi::PhysicalSize, window::Window};
 use pretty_hex::PrettyHex;
-use colored::Colorize;
-// Local modules
+use wgpu::{VertexBufferLayout, util::DeviceExt, util::BufferInitDescriptor};
+use winit::{dpi::PhysicalSize, window::Window};
+// Local
 //use super::mesh::Mesh;
 
 /// Represents the graphical state of [`super::App`]
@@ -36,9 +36,8 @@ pub struct PipelineResource<'a> {
     pub index_stride: u32,
 }
 
-/// Info struct to create a [`PipelineResource`] resource for [`State`].
-/// Contains pipeline info agnostic of device or state data.
-use wgpu::{VertexBufferLayout, util::BufferInitDescriptor};
+/// Info struct to create a [`PipelineResource`].
+/// Contains info agnostic of device or state data.
 #[derive(Clone)]
 pub struct PipelineInfo<'a> {
     pub vertex_layout: VertexBufferLayout<'a>,
@@ -241,6 +240,17 @@ impl<'a> State<'a> {
         self.pipeline = Self::create_pipeline(&self.device, &self.surface_config, info);
     }
 
+    /// Handle custom user events, i.e. [`Event`]
+    pub fn handle_event(&mut self, event: Event<'a>) -> anyhow::Result<()> {
+        use Event as E;
+        match event {
+            E::UpdatePipeline(info) => {
+                self.update_pipeline(info);
+            },
+        }
+        Ok(())
+    }
+
     /// Renders to Surface.
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
@@ -283,11 +293,12 @@ impl<'a> State<'a> {
 
             let index_buffer = &self.pipeline.index_buffer;
             if let Some(idx_buf) = index_buffer {
-                let index_stride = &self.pipeline.index_stride;
+                let index_stride = self.pipeline.index_stride;
                 let count = (idx_buf.size() as u32) / index_stride;
                 render_pass.set_index_buffer(idx_buf.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..count, 0, 0..1);
-            } else { // If index wasn't provided
+            } else {
+                // If index wasn't provided
                 let vertex_stride = self.pipeline.vertex_layout.array_stride as u32;
                 let count = (vertex_buffer.size() as u32) / vertex_stride;
                 render_pass.draw(0..count, 0..1);
@@ -297,4 +308,9 @@ impl<'a> State<'a> {
         output.present();
         Ok(())
     }
+}
+
+/// Custom events for [`State`] handled by [`winit::application::ApplicationHandler::user_event()`]
+pub enum Event<'a> {
+    UpdatePipeline(PipelineInfo<'a>),
 }

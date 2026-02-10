@@ -1,7 +1,10 @@
+mod mesh;
+mod state;
+// STD
 use std::sync::Arc;
 
-use bytemuck::{Pod, Zeroable};
 // Dependencies
+use bytemuck::{Pod, Zeroable};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use wgpu::VertexAttribute;
@@ -12,12 +15,9 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
-// Local modules
-//mod mesh;
-mod state;
-use state::State;
 
-use crate::state::{PipelineInfo, ShaderInfo};
+// Local
+use crate::state::{PipelineInfo, ShaderInfo, State};
 
 /// Handle for a graphical application.
 #[derive(Default)]
@@ -57,14 +57,23 @@ impl<'a> Vertex<'a> for MyVertex {
 // Winding: CCW
 static VERTEX_DATA: &[MyVertex] = &[
     // Top Center
-    MyVertex {position: [ 0.0, 0.5, 0.1], color: [1.0, 0.0, 0.0]},
+    MyVertex {
+        position: [0.0, 0.5, 0.1],
+        color: [1.0, 0.0, 0.0],
+    },
     // Bottom Left
-    MyVertex {position: [-0.5,-0.5, 0.1], color: [0.0, 1.0, 0.0]},
+    MyVertex {
+        position: [-0.5, -0.5, 0.1],
+        color: [0.0, 1.0, 0.0],
+    },
     // Bottom Right
-    MyVertex {position: [ 0.5,-0.5, 0.1], color: [0.0, 0.0, 1.0]},
+    MyVertex {
+        position: [0.5, -0.5, 0.1],
+        color: [0.0, 0.0, 1.0],
+    },
 ];
 
-impl ApplicationHandler for App<'_> {
+impl ApplicationHandler<state::Event<'_>> for App<'_> {
     /// Creates the window and event loop
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         info!("Creating new Window");
@@ -111,54 +120,60 @@ impl ApplicationHandler for App<'_> {
                 if v == true {
                     info!("Window {:?} was focused.", id);
                 }
-            },
-            WindowEvent::RedrawRequested => {
-                match state.render() {
-                    Err(e) => {
-                        error!("state.render() returned error: {:?}", e);
-                        panic!();
-                    },
-                    _ => ()
+            }
+            WindowEvent::RedrawRequested => match state.render() {
+                Err(e) => {
+                    error!("state.render() returned error: {:?}", e);
+                    panic!();
                 }
+                _ => (),
             },
             WindowEvent::Resized(size) => {
                 state.resize(size);
-            },
+            }
             WindowEvent::CloseRequested => {
                 info!("Window is now closing.");
                 event_loop.exit();
-            },
+            }
             WindowEvent::MouseInput {
                 button,
                 state: button_state,
                 ..
             } => {
                 if log_mouse_event() {
-                    debug!("Mouse event: button = {:?}, is_pressed = {:?}", button, button_state);
+                    debug!(
+                        "Mouse event: button = {:?}, is_pressed = {:?}",
+                        button, button_state
+                    );
                 }
-            },
+            }
             WindowEvent::CursorMoved { position, .. } => {
                 if log_mouse_event() {
                     debug!("Mouse event: position = {:?}", position);
                 }
-            },
+            }
             WindowEvent::KeyboardInput {
-                event: KeyEvent {
-                    physical_key: PhysicalKey::Code(code),
-                    state: key_state,
-                    ..
-                },
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(code),
+                        state: key_state,
+                        ..
+                    },
                 ..
             } => {
                 if log_key_event() {
-                    debug!("Key event: code = {:?}, is_pressed = {:?}", code, key_state.is_pressed());
+                    debug!(
+                        "Key event: code = {:?}, is_pressed = {:?}",
+                        code,
+                        key_state.is_pressed()
+                    );
                 }
                 match (code, key_state.is_pressed()) {
                     (KeyCode::KeyQ, true) => event_loop.exit(),
-                    _ => ()
+                    _ => (),
                 }
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
 }
@@ -176,5 +191,8 @@ fn main() {
     info!("App was started.");
     let event_loop = EventLoop::new().unwrap();
     let mut app = App::default();
-    let _ = event_loop.run_app(&mut app);
+    if let Err(e) = event_loop.run_app(&mut app) {
+        error!("Encountered error when running app: {:?}", e);
+        return;
+    };
 }
