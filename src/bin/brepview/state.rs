@@ -240,8 +240,8 @@ impl<'a> State<'a> {
     }
 
     /// Handle custom user events, i.e. [`Event`]
-    pub fn handle_event(&mut self, event: Event<'a>) -> Result<()> {
-        use Event as E;
+    pub fn handle_event(&mut self, event: ResourceEvent<'a>) -> Result<()> {
+        use ResourceEvent as E;
         match event {
             E::UpdatePipeline(info) => self.update_pipeline(info),
             _ => Ok(()),
@@ -309,7 +309,7 @@ impl<'a> State<'a> {
 
 /// Custom events for [`State`] handled by [`winit::application::ApplicationHandler::user_event()`].
 /// Used solely to update resources.
-pub enum Event<'a> {
+pub enum ResourceEvent<'a> {
     UpdatePipeline(PipelineInfo<'a>),
     SendBindGroup,
 }

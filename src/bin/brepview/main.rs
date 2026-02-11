@@ -75,7 +75,7 @@ static VERTEX_DATA: &[MyVertex] = &[
     },
 ];
 
-impl ApplicationHandler<state::Event<'static>> for App<'_> {
+impl ApplicationHandler<state::ResourceEvent<'static>> for App<'_> {
     /// Creates the window and event loop
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         info!("Creating new Window");
@@ -106,7 +106,7 @@ impl ApplicationHandler<state::Event<'static>> for App<'_> {
         info!("Window was created.");
     }
 
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: state::Event<'static>) {
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: state::ResourceEvent<'static>) {
         let state = match &mut self.state {
             Some(state) => state,
             None => return,
