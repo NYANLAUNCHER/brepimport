@@ -1,13 +1,14 @@
+// STD
 use std::{iter, sync::Arc};
 
 // Dependencies
-use colored::Colorize;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use pretty_hex::PrettyHex;
-use wgpu::{VertexBufferLayout, util::DeviceExt, util::BufferInitDescriptor};
+use wgpu::{VertexBufferLayout, util::BufferInitDescriptor, util::DeviceExt};
 use winit::{dpi::PhysicalSize, window::Window};
+
 // Local
+use super::prelude::*;
 //use super::mesh::Mesh;
 
 /// Represents the graphical state of [`super::App`]
@@ -68,10 +69,7 @@ impl<'a> State<'a> {
         device: &wgpu::Device,
         surface_config: &wgpu::SurfaceConfiguration,
         info: PipelineInfo<'a>,
-    ) -> PipelineResource<'a> {
-        let contents = info.vertex_buffer_init.contents;
-        let pretty_fmt = format!("{:?}", contents.hex_dump()).blue();
-        info!("VBO contents:\n{}", pretty_fmt);
+    ) -> Result<PipelineResource<'a>> {
         //{{{
         let shader_module = device.create_shader_module(info.shader_info.desc);
         let vertex_entry = info.shader_info.vertex_entry;
@@ -135,13 +133,13 @@ impl<'a> State<'a> {
             cache: None,
         });
 
-        PipelineResource {
+        Ok(PipelineResource {
             inner: pipeline,
             vertex_layout,
             vertex_buffer,
             index_buffer,
             index_stride,
-        }
+        })
     }
     //}}}
 
@@ -153,7 +151,7 @@ impl<'a> State<'a> {
     ///     2. Surface Configuration
     ///     3. Pipeline Creation
     ///     4. Window Attachment
-    pub async fn new(window: Arc<Window>, pipeline_info: PipelineInfo<'a>) -> anyhow::Result<Self> {
+    pub async fn new(window: Arc<Window>, pipeline_info: PipelineInfo<'a>) -> Result<Self> {
         // API & Device Setup: {{{
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
@@ -164,7 +162,7 @@ impl<'a> State<'a> {
             Ok(val) => val,
             Err(e) => {
                 panic!("Binding `surface` returned error: {:?}", e);
-            }
+            },
         };
 
         // Adapter to filter device based on capabilities
@@ -209,7 +207,7 @@ impl<'a> State<'a> {
             view_formats: vec![],
         };
         //}}}
-        let pipeline = Self::create_pipeline(&device, &surface_config, pipeline_info);
+        let pipeline = Self::create_pipeline(&device, &surface_config, pipeline_info)?;
         Ok(Self {
             window,
             device,
@@ -236,19 +234,18 @@ impl<'a> State<'a> {
 
     /// Updates the current pipeline using [`PipelineInfo`].
     #[allow(dead_code)]
-    pub fn update_pipeline(&mut self, info: PipelineInfo<'a>) {
-        self.pipeline = Self::create_pipeline(&self.device, &self.surface_config, info);
+    pub fn update_pipeline(&mut self, info: PipelineInfo<'a>) -> Result<()> {
+        self.pipeline = Self::create_pipeline(&self.device, &self.surface_config, info)?;
+        Ok(())
     }
 
     /// Handle custom user events, i.e. [`Event`]
-    pub fn handle_event(&mut self, event: Event<'a>) -> anyhow::Result<()> {
+    pub fn handle_event(&mut self, event: Event<'a>) -> Result<()> {
         use Event as E;
         match event {
-            E::UpdatePipeline(info) => {
-                self.update_pipeline(info);
-            },
+            E::UpdatePipeline(info) => self.update_pipeline(info),
+            _ => Ok(()),
         }
-        Ok(())
     }
 
     /// Renders to Surface.
@@ -310,7 +307,9 @@ impl<'a> State<'a> {
     }
 }
 
-/// Custom events for [`State`] handled by [`winit::application::ApplicationHandler::user_event()`]
+/// Custom events for [`State`] handled by [`winit::application::ApplicationHandler::user_event()`].
+/// Used solely to update resources.
 pub enum Event<'a> {
     UpdatePipeline(PipelineInfo<'a>),
+    SendBindGroup,
 }

@@ -1,4 +1,5 @@
 mod mesh;
+mod prelude;
 mod state;
 // STD
 use std::sync::Arc;
@@ -10,14 +11,15 @@ use log::{debug, error, info, trace, warn};
 use wgpu::VertexAttribute;
 use winit::{
     application::ApplicationHandler,
-    event::{KeyEvent, WindowEvent},
+    event::{self, KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
 
 // Local
-use crate::state::{PipelineInfo, ShaderInfo, State};
+use prelude::*;
+use state::{PipelineInfo, ShaderInfo, State};
 
 /// Handle for a graphical application.
 #[derive(Default)]
@@ -73,7 +75,7 @@ static VERTEX_DATA: &[MyVertex] = &[
     },
 ];
 
-impl ApplicationHandler<state::Event<'_>> for App<'_> {
+impl ApplicationHandler<state::Event<'static>> for App<'_> {
     /// Creates the window and event loop
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         info!("Creating new Window");
@@ -104,6 +106,14 @@ impl ApplicationHandler<state::Event<'_>> for App<'_> {
         info!("Window was created.");
     }
 
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: state::Event<'static>) {
+        let state = match &mut self.state {
+            Some(state) => state,
+            None => return,
+        };
+        state.handle_event(event).expect("Couldn't handle event.");
+    }
+
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
@@ -120,21 +130,21 @@ impl ApplicationHandler<state::Event<'_>> for App<'_> {
                 if v == true {
                     info!("Window {:?} was focused.", id);
                 }
-            }
+            },
             WindowEvent::RedrawRequested => match state.render() {
                 Err(e) => {
                     error!("state.render() returned error: {:?}", e);
                     panic!();
-                }
+                },
                 _ => (),
             },
             WindowEvent::Resized(size) => {
                 state.resize(size);
-            }
+            },
             WindowEvent::CloseRequested => {
                 info!("Window is now closing.");
                 event_loop.exit();
-            }
+            },
             WindowEvent::MouseInput {
                 button,
                 state: button_state,
@@ -146,12 +156,12 @@ impl ApplicationHandler<state::Event<'_>> for App<'_> {
                         button, button_state
                     );
                 }
-            }
+            },
             WindowEvent::CursorMoved { position, .. } => {
                 if log_mouse_event() {
                     debug!("Mouse event: position = {:?}", position);
                 }
-            }
+            },
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
@@ -172,7 +182,7 @@ impl ApplicationHandler<state::Event<'_>> for App<'_> {
                     (KeyCode::KeyQ, true) => event_loop.exit(),
                     _ => (),
                 }
-            }
+            },
             _ => (),
         }
     }
@@ -186,13 +196,11 @@ const fn log_key_event() -> bool {
     true
 }
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::init();
     info!("App was started.");
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop = EventLoop::with_user_event().build()?;
     let mut app = App::default();
-    if let Err(e) = event_loop.run_app(&mut app) {
-        error!("Encountered error when running app: {:?}", e);
-        return;
-    };
+    event_loop.run_app(&mut app)?;
+    Ok(())
 }
