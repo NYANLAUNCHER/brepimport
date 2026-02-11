@@ -11,7 +11,7 @@ use log::{debug, error, info, trace, warn};
 use wgpu::VertexAttribute;
 use winit::{
     application::ApplicationHandler,
-    event::{self, KeyEvent, WindowEvent},
+    event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
@@ -111,7 +111,7 @@ impl ApplicationHandler<state::ResourceEvent<'static>> for App<'_> {
             Some(state) => state,
             None => return,
         };
-        state.handle_event(event).expect("Couldn't handle event.");
+        state.handle_event(event).expect("Couldn't handle user event.");
     }
 
     fn window_event(
