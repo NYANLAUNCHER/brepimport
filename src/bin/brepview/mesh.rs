@@ -1,9 +1,9 @@
 /// Trait to implement vertex buffers
 pub trait Vertex: bytemuck::Pod + bytemuck::Zeroable {
     /// Returns the layout of the vertex attributes.
-    fn layout(&self) -> wgpu::VertexBufferLayout<'static>;
+    fn layout<'a>() -> wgpu::VertexBufferLayout<'a>;
 
-    /// Return a reference to a byte array containing the raw vertex buffer data.
+    /// Return an immutable reference to a byte array containing the raw vertex buffer data.
     fn data<'a>(&self) -> &'a [u8];
 }
 
@@ -23,14 +23,15 @@ pub struct Mesh<'a, V: Vertex> {
 /// Functions and methods for loading and manipulating raw mesh data on a wgpu device.
 impl<'a, V: Vertex> Mesh<'a, V> {
     // Allocates a new mesh resource on the device.
-    //pub fn new(device: &'a wgpu::Device) -> Self {
+    //pub fn new(device: &'a wgpu::Device, vertices: Option<&'a [V]>, indices: Option<&'a [u32]>) -> Self {
     //    Self {
+    //        device,
     //    }
     //}
 }
 
 /// Contains a Mesh handle and a corresponding transform matrix
 pub struct Model<'a, V: Vertex> {
-    mesh: Mesh<'a, V>,
+    mesh: &'a Mesh<'a, V>,
     trans: cgmath::Matrix4<u32>,
 }

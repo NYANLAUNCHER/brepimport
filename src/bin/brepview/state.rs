@@ -2,8 +2,6 @@
 use std::{iter, sync::Arc};
 
 // Dependencies
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
 use wgpu::{VertexBufferLayout, util::BufferInitDescriptor, util::DeviceExt};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -216,6 +214,11 @@ impl<'a> State<'a> {
             surface_config,
             pipeline,
         })
+    }
+
+    /// Returns a clone of the wgpu device being used by state.
+    pub fn get_device(&self) -> wgpu::Device {
+        self.device.clone()
     }
 
     /// Resize Surface to match window size.

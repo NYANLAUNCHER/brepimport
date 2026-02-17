@@ -3,11 +3,8 @@ mod prelude;
 mod state;
 // STD
 use std::sync::Arc;
-
 // Dependencies
 use bytemuck::{Pod, Zeroable};
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
 use wgpu::VertexAttribute;
 use winit::{
     application::ApplicationHandler,
@@ -16,10 +13,12 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
-
 // Local
-use prelude::*;
-use state::{PipelineInfo, ShaderInfo, State};
+use crate::{
+    prelude::*,
+    state::{PipelineInfo, ShaderInfo, State},
+    mesh::Vertex,
+};
 
 /// Handle for a graphical application.
 #[derive(Default)]
@@ -42,17 +41,16 @@ impl MyVertex {
     ];
 }
 
-pub trait Vertex<'a> {
-    fn layout() -> wgpu::VertexBufferLayout<'a>;
-}
-
-impl<'a> Vertex<'a> for MyVertex {
-    fn layout() -> wgpu::VertexBufferLayout<'a> {
+impl Vertex for MyVertex {
+    fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBUTES,
         }
+    }
+    fn data<'a>(&self) -> &'a [u8] {
+        &[1u8, 2u8, 3u8]
     }
 }
 
